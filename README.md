@@ -1,6 +1,4 @@
-<<<<<<< HEAD
 # ds-2026-labs
-=======
 
 # Ветки
 
@@ -27,4 +25,4 @@ git remote add origin git@github.com:your-name/ds-2026-labs.git
 
 git push origin main
 ```
->>>>>>> 6d842c3 (Добавлен ReadMe.md)
+
