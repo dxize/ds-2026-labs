@@ -18,12 +18,12 @@
 Через консольный клиент Git:
 
 ```bash
-git clone https://github.com/sergey-shambir/ds-2025.git
+git clone https://github.com/tanyginvv/DISTRIBUTED-PROGRAMMING.git
 
 git remote rename origin upstream
 
-# Поменяйте your-name на свой логин github и создайте репозиторий ds-2025-labs
-git remote add origin git@github.com:your-name/ds-2025-labs.git
+# Поменяйте your-name на свой логин github и создайте репозиторий ds-2026-labs
+git remote add origin git@github.com:your-name/ds-2026-labs.git
 
 git push origin main
 ```
