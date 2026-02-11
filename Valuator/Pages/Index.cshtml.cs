@@ -1,15 +1,50 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using StackExchange.Redis;
 
 namespace Valuator.Pages;
 
 public class IndexModel : PageModel
 {
     private readonly ILogger<IndexModel> _logger;
+    private readonly IDatabase _db;
 
-    public IndexModel(ILogger<IndexModel> logger)
+    private static bool IsAlphabetic(char c)
+    {
+        return (c >= 'A' && c <= 'Z')
+            || (c >= 'a' && c <= 'z')
+            || (c >= 'А' && c <= 'Я')
+            || (c >= 'а' && c <= 'я')
+            || c == 'Ё' || c == 'ё';
+    }
+
+    private double CalcRank(string text)
+    {
+        double noNormal = 0.0;
+        double result = 0.0;
+
+        if (text.Length == 0)
+        {
+            return 0.0;
+        }
+
+        foreach (char value in text)
+        {
+            if (!IsAlphabetic(value))
+            {
+                noNormal++;
+            }
+        }
+
+        result = noNormal / text.Length;
+
+        return result;
+    }
+
+    public IndexModel(ILogger<IndexModel> logger, IConnectionMultiplexer redis)
     {
         _logger = logger;
+        _db = redis.GetDatabase();
     }
 
     public void OnGet()
@@ -19,18 +54,34 @@ public class IndexModel : PageModel
 
     public IActionResult OnPost(string text)
     {
+        if (text == null)
+        {
+            text = ""; //TODO: ДОБАВИТЬ ВЫХОД С МЕТОДА
+        }
+
         _logger.LogDebug(text);
 
         string id = Guid.NewGuid().ToString();
 
         string textKey = "TEXT-" + id;
         // TODO: (pa1) сохранить в БД (Redis) text по ключу textKey
+        _db.StringSet(textKey, text);
+
 
         string rankKey = "RANK-" + id;
         // TODO: (pa1) посчитать rank и сохранить в БД (Redis) по ключу rankKey
+        double rankValue = CalcRank(text);
+        _db.StringSet(rankKey, rankValue);
+
 
         string similarityKey = "SIMILARITY-" + id;
         // TODO: (pa1) посчитать similarity и сохранить в БД (Redis) по ключу similarityKey
+        const string allTextsKey = "ALL_TEXTS";
+
+        bool added = _db.SetAdd(allTextsKey, text);
+        int similarity = added ? 0 : 1;
+
+        _db.StringSet(similarityKey, similarity);
 
         return Redirect($"summary?id={id}");
     }

@@ -1,3 +1,5 @@
+using StackExchange.Redis;
+
 namespace Valuator;
 
 public class Program
@@ -8,6 +10,15 @@ public class Program
 
         // Add services to the container.
         builder.Services.AddRazorPages();
+
+        // 1) Читаем строку подключения из appsettings: Redis:ConnectionString
+        var redisConnectionString =
+            builder.Configuration.GetValue<string>("Redis:ConnectionString")
+            ?? throw new InvalidOperationException("Missing Redis:ConnectionString in appsettings.json");
+
+        // 2) Регистрируем Redis multiplexer как Singleton
+        builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+            ConnectionMultiplexer.Connect(redisConnectionString));
 
         var app = builder.Build();
 
