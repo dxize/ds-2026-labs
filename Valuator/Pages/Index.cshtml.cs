@@ -9,15 +9,6 @@ public class IndexModel : PageModel
     private readonly ILogger<IndexModel> _logger;
     private readonly IDatabase _db;
 
-    private static bool IsAlphabetic(char c)
-    {
-        return (c >= 'A' && c <= 'Z')
-            || (c >= 'a' && c <= 'z')
-            || (c >= 'А' && c <= 'Я')
-            || (c >= 'а' && c <= 'я')
-            || c == 'Ё' || c == 'ё';
-    }
-
     private double CalcRank(string text)
     {
         double noNormal = 0.0;
@@ -30,7 +21,7 @@ public class IndexModel : PageModel
 
         foreach (char value in text)
         {
-            if (!IsAlphabetic(value))
+            if (!char.IsLetter(value))
             {
                 noNormal++;
             }
@@ -54,9 +45,9 @@ public class IndexModel : PageModel
 
     public IActionResult OnPost(string text)
     {
-        if (text == null)
+        if (string.IsNullOrWhiteSpace(text))
         {
-            text = ""; //TODO: ДОБАВИТЬ ВЫХОД С МЕТОДА
+            return Page();
         }
 
         _logger.LogDebug(text);
@@ -70,7 +61,7 @@ public class IndexModel : PageModel
 
         string rankKey = "RANK-" + id;
         // TODO: (pa1) посчитать rank и сохранить в БД (Redis) по ключу rankKey
-        double rankValue = CalcRank(text);
+        double rankValue = Math.Round(CalcRank(text), 4);
         _db.StringSet(rankKey, rankValue);
 
 

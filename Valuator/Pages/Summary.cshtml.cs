@@ -32,7 +32,7 @@ public class SummaryModel : PageModel
         string rankKey = "RANK-" + id;
         string similarityKey = "SIMILARITY-" + id;
 
-        RedisValue rankRaw = _db.StringGet(rankKey);
+        RedisValue rankRaw = _db.StringGet(rankKey);    
         Rank = rankRaw.IsNull ? 0.0 : (double)rankRaw;
 
         RedisValue simRaw = _db.StringGet(similarityKey);
