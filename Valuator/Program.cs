@@ -1,3 +1,5 @@
+using StackExchange.Redis;
+
 namespace Valuator;
 
 public class Program
@@ -9,13 +11,20 @@ public class Program
         // Add services to the container.
         builder.Services.AddRazorPages();
 
+        var redisConnectionString =
+            builder.Configuration.GetValue<string>("Redis:ConnectionString")
+            ?? throw new InvalidOperationException("Missing Redis:ConnectionString in appsettings.json");
+
+        var mux = ConnectionMultiplexer.Connect(redisConnectionString);
+        builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");
-        }
+        }   
         app.UseStaticFiles();
 
         app.UseRouting();
