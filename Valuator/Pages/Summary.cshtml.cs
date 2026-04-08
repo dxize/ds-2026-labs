@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace Valuator.Pages;
@@ -17,6 +16,7 @@ public class SummaryModel : PageModel
 
     public double Rank { get; set; }
     public double Similarity { get; set; }
+    public bool RankReady { get; set; }
 
     public void OnGet(string id)
     {
@@ -26,13 +26,15 @@ public class SummaryModel : PageModel
         {
             Rank = 0.0;
             Similarity = 0.0;
+            RankReady = false;
             return;
         }
 
         string rankKey = "RANK-" + id;
         string similarityKey = "SIMILARITY-" + id;
 
-        RedisValue rankRaw = _db.StringGet(rankKey);    
+        RedisValue rankRaw = _db.StringGet(rankKey);
+        RankReady = !rankRaw.IsNull;
         Rank = rankRaw.IsNull ? 0.0 : (double)rankRaw;
 
         RedisValue simRaw = _db.StringGet(similarityKey);

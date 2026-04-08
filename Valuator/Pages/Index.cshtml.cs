@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using StackExchange.Redis;
+using Valuator.Infrastructure;
 
 namespace Valuator.Pages;
 
@@ -8,71 +9,43 @@ public class IndexModel : PageModel
 {
     private readonly ILogger<IndexModel> _logger;
     private readonly IDatabase _db;
+    private readonly RankTaskPublisher _publisher;
 
-    private double CalcRank(string text)
-    {
-        double noNormal = 0.0;
-        double result = 0.0;
-
-        if (text.Length == 0)
-        {
-            return 0.0;
-        }
-
-        foreach (char value in text)
-        {
-            if (!char.IsLetter(value))
-            {
-                noNormal++;
-            }
-        }
-
-        result = noNormal / text.Length;
-
-        return result;
-    }
-
-    public IndexModel(ILogger<IndexModel> logger, IConnectionMultiplexer redis)
+    public IndexModel(
+        ILogger<IndexModel> logger,
+        IConnectionMultiplexer redis,
+        RankTaskPublisher publisher)
     {
         _logger = logger;
         _db = redis.GetDatabase();
+        _publisher = publisher;
     }
 
     public void OnGet()
     {
-
     }
 
-    public IActionResult OnPost(string text)
+    public async Task<IActionResult> OnPostAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
             return Page();
         }
 
-        _logger.LogDebug(text);
-
         string id = Guid.NewGuid().ToString();
 
         string textKey = "TEXT-" + id;
-        // TODO: (pa1) сохранить в БД (Redis) text по ключу textKey
-        _db.StringSet(textKey, text);
-
-
-        string rankKey = "RANK-" + id;
-        // TODO: (pa1) посчитать rank и сохранить в БД (Redis) по ключу rankKey
-        double rankValue = Math.Round(CalcRank(text), 4);
-        _db.StringSet(rankKey, rankValue);
-
+        await _db.StringSetAsync(textKey, text);
 
         string similarityKey = "SIMILARITY-" + id;
-        // TODO: (pa1) посчитать similarity и сохранить в БД (Redis) по ключу similarityKey
         const string allTextsKey = "ALL_TEXTS";
 
-        bool added = _db.SetAdd(allTextsKey, text);
+        bool added = await _db.SetAddAsync(allTextsKey, text);
         int similarity = added ? 0 : 1;
 
-        _db.StringSet(similarityKey, similarity);
+        await _db.StringSetAsync(similarityKey, similarity);
+
+        await _publisher.PublishAsync(id);
 
         return Redirect($"summary?id={id}");
     }
