@@ -6,9 +6,11 @@ set "ROOT=%cd%"
 
 set "VALUATOR_DIR=%ROOT%\Valuator"
 set "RANK_DIR=%ROOT%\RankCalculator"
+set "EVENTS_DIR=%ROOT%\EventsLogger"
 
 set "VALUATOR=%VALUATOR_DIR%\Valuator.csproj"
 set "RANK=%RANK_DIR%\RankCalculator.csproj"
+set "EVENTS=%EVENTS_DIR%\EventsLogger.csproj"
 
 set "CONF=%ROOT%\nginx\conf\nginx.conf"
 set "LOGS=%ROOT%\nginx\logs"
@@ -24,6 +26,12 @@ if not exist "%VALUATOR%" (
 
 if not exist "%RANK%" (
     echo ERROR: not found "%RANK%"
+    pause
+    exit /b 1
+)
+
+if not exist "%EVENTS%" (
+    echo ERROR: not found "%EVENTS%"
     pause
     exit /b 1
 )
@@ -44,6 +52,7 @@ del /q "%RUNNERDIR%\*.cmd" >nul 2>&1
 if /I "%~1"=="rebuild" goto :build
 if not exist "%VALUATOR_DIR%\bin\Debug\net8.0\Valuator.dll" goto :build
 if not exist "%RANK_DIR%\bin\Debug\net8.0\RankCalculator.dll" goto :build
+if not exist "%EVENTS_DIR%\bin\Debug\net8.0\EventsLogger.dll" goto :build
 goto :docker
 
 :build
@@ -59,6 +68,14 @@ echo Building RankCalculator...
 dotnet build "%RANK%"
 if errorlevel 1 (
     echo RankCalculator build failed
+    pause
+    exit /b 1
+)
+
+echo Building EventsLogger...
+dotnet build "%EVENTS%"
+if errorlevel 1 (
+    echo EventsLogger build failed
     pause
     exit /b 1
 )
@@ -127,6 +144,20 @@ echo Creating runner files...
     echo dotnet run --no-build
 )
 
+> "%RUNNERDIR%\events-logger-1.cmd" (
+    echo @echo off
+    echo title EventsLogger-1
+    echo cd /d "%EVENTS_DIR%"
+    echo dotnet run --no-build
+)
+
+> "%RUNNERDIR%\events-logger-2.cmd" (
+    echo @echo off
+    echo title EventsLogger-2
+    echo cd /d "%EVENTS_DIR%"
+    echo dotnet run --no-build
+)
+
 echo Starting Valuator-5001...
 for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\valuator-5001.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
 > "%PIDDIR%\valuator-5001.pid" echo %PID%
@@ -142,6 +173,14 @@ for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Sta
 echo Starting RankCalculator-2...
 for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\rank-2.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
 > "%PIDDIR%\rank-2.pid" echo %PID%
+
+echo Starting EventsLogger-1...
+for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\events-logger-1.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
+> "%PIDDIR%\events-logger-1.pid" echo %PID%
+
+echo Starting EventsLogger-2...
+for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\events-logger-2.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
+> "%PIDDIR%\events-logger-2.pid" echo %PID%
 
 echo.
 echo Done.

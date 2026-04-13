@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.4.11612.150 stable
+VisualStudioVersion = 18.4.11612.150
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Valuator", "Valuator\Valuator.csproj", "{BB3B7AF3-09CB-8246-6EE6-CF385AAB4AA1}"
 EndProject
@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решен
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RankCalculator", "RankCalculator\RankCalculator.csproj", "{BDF17A85-7239-4781-8900-5817FD378DE9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventsLogger", "EventsLogger\EventsLogger.csproj", "{59E19D2B-3128-463D-9532-8ADD170D192B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,6 +28,10 @@ Global
 		{BDF17A85-7239-4781-8900-5817FD378DE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BDF17A85-7239-4781-8900-5817FD378DE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BDF17A85-7239-4781-8900-5817FD378DE9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59E19D2B-3128-463D-9532-8ADD170D192B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59E19D2B-3128-463D-9532-8ADD170D192B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59E19D2B-3128-463D-9532-8ADD170D192B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59E19D2B-3128-463D-9532-8ADD170D192B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

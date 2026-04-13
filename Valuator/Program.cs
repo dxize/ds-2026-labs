@@ -27,6 +27,10 @@ public class Program
             builder.Configuration.GetValue<string>("RabbitMq:QueueName")
             ?? throw new InvalidOperationException("Missing RabbitMq:QueueName in appsettings.json");
 
+        var rabbitMqEventsExchange =
+            builder.Configuration.GetValue<string>("RabbitMq:EventsExchangeName")
+            ?? throw new InvalidOperationException("Missing RabbitMq:EventsExchangeName in appsettings.json");
+
         var mux = ConnectionMultiplexer.Connect(redisConnectionString);
         builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
 
@@ -34,10 +38,12 @@ public class Program
         {
             HostName = rabbitMqHost,
             ExchangeName = rabbitMqExchange,
-            QueueName = rabbitMqQueue
+            QueueName = rabbitMqQueue,
+            EventsExchangeName = rabbitMqEventsExchange
         });
 
         builder.Services.AddSingleton<RankTaskPublisher>();
+        builder.Services.AddSingleton<MetricsEventPublisher>();
 
         var app = builder.Build();
 

@@ -10,15 +10,18 @@ public class IndexModel : PageModel
     private readonly ILogger<IndexModel> _logger;
     private readonly IDatabase _db;
     private readonly RankTaskPublisher _publisher;
+    private readonly MetricsEventPublisher _metricsEventPublisher;
 
     public IndexModel(
         ILogger<IndexModel> logger,
         IConnectionMultiplexer redis,
-        RankTaskPublisher publisher)
+        RankTaskPublisher publisher,
+        MetricsEventPublisher metricsEventPublisher)
     {
         _logger = logger;
         _db = redis.GetDatabase();
         _publisher = publisher;
+        _metricsEventPublisher = metricsEventPublisher;
     }
 
     public void OnGet()
@@ -45,6 +48,7 @@ public class IndexModel : PageModel
 
         await _db.StringSetAsync(similarityKey, similarity);
 
+        await _metricsEventPublisher.PublishSimilarityCalculatedAsync(id, similarity);
         await _publisher.PublishAsync(id);
 
         return Redirect($"summary?id={id}");

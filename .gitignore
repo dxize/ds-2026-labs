@@ -15,3 +15,7 @@ nginx/logs/*.log
 **/bin/
 **/obj/
 nginx/logs/*.log
+
+
+scripts/.pids/
+scripts/.runners/
