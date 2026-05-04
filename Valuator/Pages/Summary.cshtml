@@ -1,6 +1,44 @@
-﻿@page
+@page
 @model Valuator.Pages.SummaryModel
 @{
 }
-<p>Оценка содержания: @Model.Rank</p>
+
+<div id="rank-section">
+    @if (Model.RankReady)
+    {
+        <p id="rank-text">Оценка содержания: @Model.Rank</p>
+    }
+    else
+    {
+        <p id="rank-text">Оценка содержания: вычисляется...</p>
+    }
+</div>
+
 <p>Плагиат: @Model.Similarity</p>
+
+@if (!Model.RankReady)
+{
+    <!-- Подключаем библиотеку SignalR для браузера -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const textId = "@Model.TextId";
+
+        // Создаем подключение к нашему хабу
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/rankHub")
+            .withAutomaticReconnect()
+            .build();
+
+        // Подписываемся на событие "RankReady", которое отправляет сервер
+        connection.on("RankReady", function (rank) {
+            document.getElementById("rank-text").textContent = "Оценка содержания: " + rank;
+        });
+
+        // Запускаем подключение и сообщаем серверу, какой именно текст мы ждем
+        connection.start().then(function () {
+            connection.invoke("JoinTextGroup", textId);
+        }).catch(function (err) {
+            console.error("SignalR connection error: ", err);
+        });
+    </script>
+}
