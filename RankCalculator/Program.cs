@@ -7,38 +7,33 @@ using StackExchange.Redis;
 using System.Text;
 using System.Text.Json;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-var redisConnectionString =
-    builder.Configuration.GetValue<string>("Redis:ConnectionString")
-    ?? throw new InvalidOperationException("Missing Redis:ConnectionString");
+var builder = Host.CreateApplicationBuilder( args );
 
 var rabbitMqHost =
-    builder.Configuration.GetValue<string>("RabbitMq:HostName")
-    ?? throw new InvalidOperationException("Missing RabbitMq:HostName");
+    builder.Configuration.GetValue<string>( "RabbitMq:HostName" )
+    ?? throw new InvalidOperationException( "Missing RabbitMq:HostName" );
 
 var rabbitMqExchange =
-    builder.Configuration.GetValue<string>("RabbitMq:ExchangeName")
-    ?? throw new InvalidOperationException("Missing RabbitMq:ExchangeName");
+    builder.Configuration.GetValue<string>( "RabbitMq:ExchangeName" )
+    ?? throw new InvalidOperationException( "Missing RabbitMq:ExchangeName" );
 
 var rabbitMqQueue =
-    builder.Configuration.GetValue<string>("RabbitMq:QueueName")
-    ?? throw new InvalidOperationException("Missing RabbitMq:QueueName");
+    builder.Configuration.GetValue<string>( "RabbitMq:QueueName" )
+    ?? throw new InvalidOperationException( "Missing RabbitMq:QueueName" );
 
 var rabbitMqEventsExchange =
-    builder.Configuration.GetValue<string>("RabbitMq:EventsExchangeName")
-    ?? throw new InvalidOperationException("Missing RabbitMq:EventsExchangeName");
+    builder.Configuration.GetValue<string>( "RabbitMq:EventsExchangeName" )
+    ?? throw new InvalidOperationException( "Missing RabbitMq:EventsExchangeName" );
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.AddSingleton<RedisShardRouter>();
 
-builder.Services.AddHostedService(sp =>
+builder.Services.AddHostedService( sp =>
     new Worker(
-        sp.GetRequiredService<IConnectionMultiplexer>(),
+        sp.GetRequiredService<RedisShardRouter>(),
         rabbitMqHost,
         rabbitMqExchange,
         rabbitMqQueue,
-        rabbitMqEventsExchange));
+        rabbitMqEventsExchange ) );
 
 await builder.Build().RunAsync();
 
@@ -46,18 +41,18 @@ public class Worker : BackgroundService
 {
     private const string RankCalculatedRoutingKey = "metrics.rank.calculated";
 
-    private readonly IConnectionMultiplexer _redis;
+    private readonly RedisShardRouter _redis;
     private readonly string _host;
     private readonly string _exchange;
     private readonly string _queue;
     private readonly string _eventsExchange;
 
     public Worker(
-        IConnectionMultiplexer redis,
+        RedisShardRouter redis,
         string host,
         string exchange,
         string queue,
-        string eventsExchange)
+        string eventsExchange )
     {
         _redis = redis;
         _host = host;
@@ -66,15 +61,15 @@ public class Worker : BackgroundService
         _eventsExchange = eventsExchange;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync( CancellationToken stoppingToken )
     {
         ConnectionFactory factory = new ConnectionFactory
         {
             HostName = _host
         };
 
-        await using IConnection connection = await factory.CreateConnectionAsync(stoppingToken);
-        await using IChannel channel = await connection.CreateChannelAsync(null, stoppingToken);
+        await using IConnection connection = await factory.CreateConnectionAsync( stoppingToken );
+        await using IChannel channel = await connection.CreateChannelAsync( null, stoppingToken );
 
         await channel.ExchangeDeclareAsync(
             exchange: _exchange,
@@ -112,26 +107,38 @@ public class Worker : BackgroundService
             cancellationToken: stoppingToken
         );
 
-        AsyncEventingBasicConsumer consumer = new(channel);
-        consumer.ReceivedAsync += async (_, eventArgs) =>
-        {
-            string id = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
+        AsyncEventingBasicConsumer consumer = new( channel );
 
-            IDatabase db = _redis.GetDatabase();
+        consumer.ReceivedAsync += async ( _, eventArgs ) =>
+        {
+            string id = Encoding.UTF8.GetString( eventArgs.Body.ToArray() );
+
+            string? shardKey = await _redis.LookupShardKeyAsync( id );
+
+            if ( string.IsNullOrWhiteSpace( shardKey ) )
+            {
+                Console.WriteLine( $"LOOKUP: {id}, NOT_FOUND" );
+                await channel.BasicAckAsync( eventArgs.DeliveryTag, false );
+                return;
+            }
+
+            Console.WriteLine( $"LOOKUP: {id}, {shardKey}" );
+
+            IDatabase db = _redis.GetShardDatabase( shardKey );
 
             string textKey = "TEXT-" + id;
             string rankKey = "RANK-" + id;
 
-            RedisValue textRaw = await db.StringGetAsync(textKey);
+            RedisValue textRaw = await db.StringGetAsync( textKey );
             string text = textRaw.IsNull ? string.Empty : textRaw.ToString();
 
-            double rank = CalcRank(text);
-            rank = Math.Round(rank, 4);
+            double rank = CalcRank( text );
+            rank = Math.Round( rank, 4 );
 
-            await db.StringSetAsync(rankKey, rank);
-            await PublishRankCalculatedAsync(channel, id, rank);
+            await db.StringSetAsync( rankKey, rank );
+            await PublishRankCalculatedAsync( channel, id, rank );
 
-            await channel.BasicAckAsync(eventArgs.DeliveryTag, false);
+            await channel.BasicAckAsync( eventArgs.DeliveryTag, false );
         };
 
         await channel.BasicConsumeAsync(
@@ -141,10 +148,10 @@ public class Worker : BackgroundService
             cancellationToken: stoppingToken
         );
 
-        await Task.Delay(Timeout.Infinite, stoppingToken);
+        await Task.Delay( Timeout.Infinite, stoppingToken );
     }
 
-    private async Task PublishRankCalculatedAsync(IChannel channel, string id, double rank)
+    private async Task PublishRankCalculatedAsync( IChannel channel, string id, double rank )
     {
         MetricsEventMessage message = new()
         {
@@ -154,7 +161,7 @@ public class Worker : BackgroundService
             OccurredAtUtc = DateTime.UtcNow
         };
 
-        byte[] body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+        byte[] body = Encoding.UTF8.GetBytes( JsonSerializer.Serialize( message ) );
 
         await channel.BasicPublishAsync(
             exchange: _eventsExchange,
@@ -164,24 +171,86 @@ public class Worker : BackgroundService
         );
     }
 
-    private static double CalcRank(string text)
+    private static double CalcRank( string text )
     {
         double noNormal = 0.0;
 
-        if (text.Length == 0)
+        if ( text.Length == 0 )
         {
             return 0.0;
         }
 
-        foreach (char value in text)
+        foreach ( char value in text )
         {
-            if (!char.IsLetter(value))
+            if ( !char.IsLetter( value ) )
             {
                 noNormal++;
             }
         }
 
         return noNormal / text.Length;
+    }
+}
+
+public sealed class RedisShardRouter : IDisposable
+{
+    private readonly IConnectionMultiplexer _main;
+    private readonly Dictionary<string, IConnectionMultiplexer> _shards;
+
+    public RedisShardRouter( IConfiguration configuration )
+    {
+        string main = GetConnectionString( configuration, "DB_MAIN", "Redis:Main", "127.0.0.1:6000" );
+        string ru = GetConnectionString( configuration, "DB_RU", "Redis:RU", "127.0.0.1:6001" );
+        string eu = GetConnectionString( configuration, "DB_EU", "Redis:EU", "127.0.0.1:6002" );
+        string asia = GetConnectionString( configuration, "DB_ASIA", "Redis:ASIA", "127.0.0.1:6003" );
+
+        _main = ConnectionMultiplexer.Connect( main );
+
+        _shards = new Dictionary<string, IConnectionMultiplexer>( StringComparer.OrdinalIgnoreCase )
+        {
+            [ "RU" ] = ConnectionMultiplexer.Connect( ru ),
+            [ "EU" ] = ConnectionMultiplexer.Connect( eu ),
+            [ "ASIA" ] = ConnectionMultiplexer.Connect( asia )
+        };
+    }
+
+    public IDatabase MainDb => _main.GetDatabase();
+
+    public IDatabase GetShardDatabase( string shardKey )
+    {
+        if ( !_shards.TryGetValue( shardKey, out IConnectionMultiplexer? redis ) )
+        {
+            throw new InvalidOperationException( $"Unknown shard key: {shardKey}" );
+        }
+
+        return redis.GetDatabase();
+    }
+
+    public async Task<string?> LookupShardKeyAsync( string textId )
+    {
+        RedisValue shardKey = await MainDb.StringGetAsync( textId );
+        return shardKey.IsNull ? null : shardKey.ToString();
+    }
+
+    private static string GetConnectionString(
+        IConfiguration configuration,
+        string environmentVariableName,
+        string configurationKey,
+        string defaultValue )
+    {
+        return Environment.GetEnvironmentVariable( environmentVariableName )
+               ?? configuration.GetValue<string>( configurationKey )
+               ?? defaultValue;
+    }
+
+    public void Dispose()
+    {
+        _main.Dispose();
+
+        foreach ( IConnectionMultiplexer redis in _shards.Values )
+        {
+            redis.Dispose();
+        }
     }
 }
 

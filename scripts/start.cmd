@@ -18,6 +18,11 @@ set "LOGS=%ROOT%\nginx\logs"
 set "PIDDIR=%ROOT%\scripts\.pids"
 set "RUNNERDIR=%ROOT%\scripts\.runners"
 
+set "DB_MAIN=127.0.0.1:6000"
+set "DB_RU=127.0.0.1:6001"
+set "DB_EU=127.0.0.1:6002"
+set "DB_ASIA=127.0.0.1:6003"
+
 if not exist "%VALUATOR%" (
     echo ERROR: not found "%VALUATOR%"
     pause
@@ -81,18 +86,45 @@ if errorlevel 1 (
 )
 
 :docker
-echo Recreating Redis...
-docker rm -f pa3-redis >nul 2>&1
-docker run -d --name pa3-redis -p 6379:6379 redis:7-alpine >nul
+echo Recreating Redis DB_MAIN...
+docker rm -f pa6-redis-main >nul 2>&1
+docker run -d --name pa6-redis-main -p 6000:6379 redis:7-alpine >nul
 if errorlevel 1 (
-    echo Failed to start Redis
+    echo Failed to start Redis DB_MAIN
+    pause
+    exit /b 1
+)
+
+echo Recreating Redis DB_RU...
+docker rm -f pa6-redis-ru >nul 2>&1
+docker run -d --name pa6-redis-ru -p 6001:6379 redis:7-alpine >nul
+if errorlevel 1 (
+    echo Failed to start Redis DB_RU
+    pause
+    exit /b 1
+)
+
+echo Recreating Redis DB_EU...
+docker rm -f pa6-redis-eu >nul 2>&1
+docker run -d --name pa6-redis-eu -p 6002:6379 redis:7-alpine >nul
+if errorlevel 1 (
+    echo Failed to start Redis DB_EU
+    pause
+    exit /b 1
+)
+
+echo Recreating Redis DB_ASIA...
+docker rm -f pa6-redis-asia >nul 2>&1
+docker run -d --name pa6-redis-asia -p 6003:6379 redis:7-alpine >nul
+if errorlevel 1 (
+    echo Failed to start Redis DB_ASIA
     pause
     exit /b 1
 )
 
 echo Recreating RabbitMQ...
-docker rm -f pa3-rabbitmq >nul 2>&1
-docker run -d --name pa3-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-management >nul
+docker rm -f pa6-rabbitmq >nul 2>&1
+docker run -d --name pa6-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-management >nul
 if errorlevel 1 (
     echo Failed to start RabbitMQ
     pause
@@ -119,6 +151,10 @@ echo Creating runner files...
 > "%RUNNERDIR%\valuator-5001.cmd" (
     echo @echo off
     echo title Valuator-5001
+    echo set "DB_MAIN=%DB_MAIN%"
+    echo set "DB_RU=%DB_RU%"
+    echo set "DB_EU=%DB_EU%"
+    echo set "DB_ASIA=%DB_ASIA%"
     echo cd /d "%VALUATOR_DIR%"
     echo dotnet run --no-build --urls http://0.0.0.0:5001
 )
@@ -126,6 +162,10 @@ echo Creating runner files...
 > "%RUNNERDIR%\valuator-5002.cmd" (
     echo @echo off
     echo title Valuator-5002
+    echo set "DB_MAIN=%DB_MAIN%"
+    echo set "DB_RU=%DB_RU%"
+    echo set "DB_EU=%DB_EU%"
+    echo set "DB_ASIA=%DB_ASIA%"
     echo cd /d "%VALUATOR_DIR%"
     echo dotnet run --no-build --urls http://0.0.0.0:5002
 )
@@ -133,6 +173,10 @@ echo Creating runner files...
 > "%RUNNERDIR%\rank-1.cmd" (
     echo @echo off
     echo title RankCalculator-1
+    echo set "DB_MAIN=%DB_MAIN%"
+    echo set "DB_RU=%DB_RU%"
+    echo set "DB_EU=%DB_EU%"
+    echo set "DB_ASIA=%DB_ASIA%"
     echo cd /d "%RANK_DIR%"
     echo dotnet run --no-build
 )
@@ -140,6 +184,10 @@ echo Creating runner files...
 > "%RUNNERDIR%\rank-2.cmd" (
     echo @echo off
     echo title RankCalculator-2
+    echo set "DB_MAIN=%DB_MAIN%"
+    echo set "DB_RU=%DB_RU%"
+    echo set "DB_EU=%DB_EU%"
+    echo set "DB_ASIA=%DB_ASIA%"
     echo cd /d "%RANK_DIR%"
     echo dotnet run --no-build
 )
@@ -185,5 +233,11 @@ for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Sta
 echo.
 echo Done.
 echo Open: http://localhost:8080
+echo RabbitMQ UI: http://localhost:15672
+echo Redis:
+echo   DB_MAIN=%DB_MAIN%
+echo   DB_RU=%DB_RU%
+echo   DB_EU=%DB_EU%
+echo   DB_ASIA=%DB_ASIA%
 pause
 exit /b 0

@@ -3,13 +3,23 @@
 @{
 }
 
-@if (Model.RankReady)
+@if ( !Model.TextFound )
 {
-    <p>Оценка содержания: @Model.Rank</p>
+    <p>Текст не найден</p>
 }
 else
 {
-    <p>Оценка содержания не завершена</p>
-}
+    <p>Страна: @Model.Country</p>
+    <p>Сегмент Redis: @Model.ShardKey</p>
 
-<p>Плагиат: @Model.Similarity</p>
+    @if ( Model.RankReady )
+    {
+        <p>Оценка содержания: @Model.Rank</p>
+    }
+    else
+    {
+        <p>Оценка содержания не завершена</p>
+    }
+
+    <p>Плагиат: @Model.Similarity</p>
+}

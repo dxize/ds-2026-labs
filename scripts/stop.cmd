@@ -18,9 +18,12 @@ call :killPort 5001
 call :killPort 5002
 
 echo Stopping Docker containers...
-docker stop nginx-lb >nul 2>&1
-docker stop pa3-rabbitmq >nul 2>&1
-docker stop pa3-redis >nul 2>&1
+docker rm -f nginx-lb >nul 2>&1
+docker rm -f pa6-rabbitmq >nul 2>&1
+docker rm -f pa6-redis-main >nul 2>&1
+docker rm -f pa6-redis-ru >nul 2>&1
+docker rm -f pa6-redis-eu >nul 2>&1
+docker rm -f pa6-redis-asia >nul 2>&1
 
 echo Done.
 pause
