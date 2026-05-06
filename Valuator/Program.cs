@@ -46,7 +46,6 @@ public class Program
         builder.Services.AddSingleton<RankTaskPublisher>();
         builder.Services.AddSingleton<MetricsEventPublisher>();
         
-        // Регистрация SignalR и фоновой службы уведомлений
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<RankNotificationService>();
 
@@ -61,7 +60,7 @@ public class Program
         app.UseRouting();
         app.UseAuthorization();
         app.MapRazorPages();
-        app.MapHub<RankHub>("/rankHub"); // Маршрут для подключения браузеров
+        app.MapHub<RankHub>("/rankHub"); 
         app.Run();
     }
 }

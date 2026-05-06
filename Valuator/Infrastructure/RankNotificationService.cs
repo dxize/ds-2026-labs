@@ -46,7 +46,6 @@ public class RankNotificationService : BackgroundService
 
         string queueName = queueInfo.QueueName;
 
-        // Подписываемся только на события RankCalculated
         await channel.QueueBindAsync(
             queue: queueName,
             exchange: _options.EventsExchangeName,
@@ -64,7 +63,6 @@ public class RankNotificationService : BackgroundService
 
             if (message is not null && message.EventType == "RankCalculated")
             {
-                // Отправляем результат через SignalR всем браузерам, которые ждут именно этот textId
                 await _hubContext.Clients.Group(message.TextId).SendAsync(
                     "RankReady",
                     message.Rank,
