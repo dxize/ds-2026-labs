@@ -49,7 +49,7 @@ public class Program
         builder.Services.AddSignalR();
         builder.Services.AddHostedService<RankNotificationService>();
 
-        var app = builder.Build();
+        WebApplication app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
         {
