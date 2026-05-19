@@ -14,9 +14,12 @@ public class RankTaskPublisher
 
     public async Task PublishAsync(string id)
     {
-        ConnectionFactory factory = new ConnectionFactory
+        ConnectionFactory factory = new()
         {
-            HostName = _options.HostName
+            HostName = _options.HostName,
+            Port = _options.Port,
+            UserName = _options.UserName,
+            Password = _options.Password
         };
 
         await using IConnection connection = await factory.CreateConnectionAsync();
@@ -24,7 +27,7 @@ public class RankTaskPublisher
 
         await channel.ExchangeDeclareAsync(
             exchange: _options.ExchangeName,
-            type: ExchangeType.Direct //маршутизуются по routingKey
+            type: ExchangeType.Direct
         );
 
         await channel.QueueDeclareAsync(

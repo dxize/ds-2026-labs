@@ -35,10 +35,20 @@ public class IndexModel : PageModel
             return Page();
         }
 
+        string? login = User.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(login))
+        {
+            return Challenge();
+        }
+
         string id = Guid.NewGuid().ToString();
 
         string textKey = "TEXT-" + id;
         await _db.StringSetAsync(textKey, text);
+
+        string authorKey = "AUTHOR-" + id;
+        await _db.StringSetAsync(authorKey, login);
 
         string similarityKey = "SIMILARITY-" + id;
         const string allTextsKey = "ALL_TEXTS";

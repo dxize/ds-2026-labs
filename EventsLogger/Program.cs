@@ -12,23 +12,44 @@ var rabbitMqHost =
     builder.Configuration.GetValue<string>("RabbitMq:HostName")
     ?? throw new InvalidOperationException("Missing RabbitMq:HostName");
 
+var rabbitMqPort = builder.Configuration.GetValue<int?>("RabbitMq:Port") ?? 5672;
+
+var rabbitMqUserName =
+    builder.Configuration.GetValue<string>("RabbitMq:UserName")
+    ?? throw new InvalidOperationException("Missing RabbitMq:UserName");
+
+var rabbitMqPassword =
+    builder.Configuration.GetValue<string>("RabbitMq:Password")
+    ?? throw new InvalidOperationException("Missing RabbitMq:Password");
+
 var rabbitMqEventsExchange =
     builder.Configuration.GetValue<string>("RabbitMq:EventsExchangeName")
     ?? throw new InvalidOperationException("Missing RabbitMq:EventsExchangeName");
 
 builder.Services.AddHostedService(_ =>
-    new Worker(rabbitMqHost, rabbitMqEventsExchange));
+    new Worker(
+        rabbitMqHost,
+        rabbitMqPort,
+        rabbitMqUserName,
+        rabbitMqPassword,
+        rabbitMqEventsExchange));
 
 await builder.Build().RunAsync();
 
 public sealed class Worker : BackgroundService
 {
     private readonly string _host;
+    private readonly int _port;
+    private readonly string _userName;
+    private readonly string _password;
     private readonly string _eventsExchange;
 
-    public Worker(string host, string eventsExchange)
+    public Worker(string host, int port, string userName, string password, string eventsExchange)
     {
         _host = host;
+        _port = port;
+        _userName = userName;
+        _password = password;
         _eventsExchange = eventsExchange;
     }
 
@@ -36,7 +57,10 @@ public sealed class Worker : BackgroundService
     {
         ConnectionFactory factory = new()
         {
-            HostName = _host
+            HostName = _host,
+            Port = _port,
+            UserName = _userName,
+            Password = _password
         };
 
         await using IConnection connection = await factory.CreateConnectionAsync(stoppingToken);

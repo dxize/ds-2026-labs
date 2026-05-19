@@ -1,0 +1,32 @@
+@page
+@model Valuator.Pages.LoginModel
+@{
+    ViewData["Title"] = "Вход";
+}
+
+<h1>Вход</h1>
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<form method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
+
+    <div class="mb-3">
+        <label class="form-label">Логин</label>
+        <input class="form-control" asp-for="Login" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Пароль</label>
+        <input class="form-control" asp-for="Password" type="password" />
+    </div>
+
+    <button class="btn btn-primary" type="submit">Войти</button>
+</form>
+
+<p class="mt-3">
+    Нет аккаунта? <a asp-page="/Register">Зарегистрироваться</a>
+</p>

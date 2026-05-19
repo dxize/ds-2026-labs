@@ -17,6 +17,16 @@ var rabbitMqHost =
     builder.Configuration.GetValue<string>("RabbitMq:HostName")
     ?? throw new InvalidOperationException("Missing RabbitMq:HostName");
 
+var rabbitMqPort = builder.Configuration.GetValue<int?>("RabbitMq:Port") ?? 5672;
+
+var rabbitMqUserName =
+    builder.Configuration.GetValue<string>("RabbitMq:UserName")
+    ?? throw new InvalidOperationException("Missing RabbitMq:UserName");
+
+var rabbitMqPassword =
+    builder.Configuration.GetValue<string>("RabbitMq:Password")
+    ?? throw new InvalidOperationException("Missing RabbitMq:Password");
+
 var rabbitMqExchange =
     builder.Configuration.GetValue<string>("RabbitMq:ExchangeName")
     ?? throw new InvalidOperationException("Missing RabbitMq:ExchangeName");
@@ -36,6 +46,9 @@ builder.Services.AddHostedService(sp =>
     new Worker(
         sp.GetRequiredService<IConnectionMultiplexer>(),
         rabbitMqHost,
+        rabbitMqPort,
+        rabbitMqUserName,
+        rabbitMqPassword,
         rabbitMqExchange,
         rabbitMqQueue,
         rabbitMqEventsExchange));
@@ -48,6 +61,9 @@ public class Worker : BackgroundService
 
     private readonly IConnectionMultiplexer _redis;
     private readonly string _host;
+    private readonly int _port;
+    private readonly string _userName;
+    private readonly string _password;
     private readonly string _exchange;
     private readonly string _queue;
     private readonly string _eventsExchange;
@@ -55,12 +71,18 @@ public class Worker : BackgroundService
     public Worker(
         IConnectionMultiplexer redis,
         string host,
+        int port,
+        string userName,
+        string password,
         string exchange,
         string queue,
         string eventsExchange)
     {
         _redis = redis;
         _host = host;
+        _port = port;
+        _userName = userName;
+        _password = password;
         _exchange = exchange;
         _queue = queue;
         _eventsExchange = eventsExchange;
@@ -68,9 +90,12 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        ConnectionFactory factory = new ConnectionFactory
+        ConnectionFactory factory = new()
         {
-            HostName = _host
+            HostName = _host,
+            Port = _port,
+            UserName = _userName,
+            Password = _password
         };
 
         await using IConnection connection = await factory.CreateConnectionAsync(stoppingToken);

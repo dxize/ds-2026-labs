@@ -32,7 +32,10 @@ public class MetricsEventPublisher
     {
         ConnectionFactory factory = new()
         {
-            HostName = _options.HostName
+            HostName = _options.HostName,
+            Port = _options.Port,
+            UserName = _options.UserName,
+            Password = _options.Password
         };
 
         await using IConnection connection = await factory.CreateConnectionAsync();

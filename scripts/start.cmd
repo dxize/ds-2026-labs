@@ -1,189 +1,88 @@
 @echo off
-setlocal EnableExtensions
+setlocal
 
-cd /d "%~dp0.."
-set "ROOT=%cd%"
+set "ROOT=%~dp0.."
+for %%I in ("%ROOT%") do set "ROOT=%%~fI"
 
 set "VALUATOR_DIR=%ROOT%\Valuator"
 set "RANK_DIR=%ROOT%\RankCalculator"
 set "EVENTS_DIR=%ROOT%\EventsLogger"
 
-set "VALUATOR=%VALUATOR_DIR%\Valuator.csproj"
-set "RANK=%RANK_DIR%\RankCalculator.csproj"
-set "EVENTS=%EVENTS_DIR%\EventsLogger.csproj"
+set "REDIS_PASSWORD=local_redis_password"
+set "RABBITMQ_USER=local_rabbit_user"
+set "RABBITMQ_PASSWORD=local_rabbit_password"
 
-set "CONF=%ROOT%\nginx\conf\nginx.conf"
-set "LOGS=%ROOT%\nginx\logs"
+echo Root: %ROOT%
+echo.
 
-set "PIDDIR=%ROOT%\scripts\.pids"
-set "RUNNERDIR=%ROOT%\scripts\.runners"
+echo Stopping old pa7 containers...
+docker rm -f pa7-redis pa7-rabbitmq nginx-lb >nul 2>nul
 
-if not exist "%VALUATOR%" (
-    echo ERROR: not found "%VALUATOR%"
-    pause
-    exit /b 1
-)
+echo.
+echo Starting Redis with password...
+docker run -d ^
+  --name pa7-redis ^
+  -p 6379:6379 ^
+  redis:7 ^
+  redis-server --requirepass "%REDIS_PASSWORD%"
 
-if not exist "%RANK%" (
-    echo ERROR: not found "%RANK%"
-    pause
-    exit /b 1
-)
+echo.
+echo Starting RabbitMQ with user/password...
+docker run -d ^
+  --name pa7-rabbitmq ^
+  -p 5672:5672 ^
+  -p 15672:15672 ^
+  -e RABBITMQ_DEFAULT_USER="%RABBITMQ_USER%" ^
+  -e RABBITMQ_DEFAULT_PASS="%RABBITMQ_PASSWORD%" ^
+  rabbitmq:3-management
 
-if not exist "%EVENTS%" (
-    echo ERROR: not found "%EVENTS%"
-    pause
-    exit /b 1
-)
+echo.
+echo Waiting for Redis and RabbitMQ...
+timeout /t 7 /nobreak >nul
 
-if not exist "%CONF%" (
-    echo ERROR: nginx.conf not found: "%CONF%"
-    pause
-    exit /b 1
-)
+echo.
+echo Starting nginx...
+docker run -d ^
+  --name nginx-lb ^
+  -p 8080:80 ^
+  -v "%ROOT%\nginx\conf\nginx.conf:/etc/nginx/nginx.conf:ro" ^
+  nginx:latest
 
-if not exist "%LOGS%" mkdir "%LOGS%"
-if not exist "%PIDDIR%" mkdir "%PIDDIR%"
-if not exist "%RUNNERDIR%" mkdir "%RUNNERDIR%"
-
-del /q "%PIDDIR%\*.pid" >nul 2>&1
-del /q "%RUNNERDIR%\*.cmd" >nul 2>&1
-
-if /I "%~1"=="rebuild" goto :build
-if not exist "%VALUATOR_DIR%\bin\Debug\net8.0\Valuator.dll" goto :build
-if not exist "%RANK_DIR%\bin\Debug\net8.0\RankCalculator.dll" goto :build
-if not exist "%EVENTS_DIR%\bin\Debug\net8.0\EventsLogger.dll" goto :build
-goto :docker
-
-:build
-echo Building Valuator...
-dotnet build "%VALUATOR%"
-if errorlevel 1 (
-    echo Valuator build failed
-    pause
-    exit /b 1
-)
-
-echo Building RankCalculator...
-dotnet build "%RANK%"
-if errorlevel 1 (
-    echo RankCalculator build failed
-    pause
-    exit /b 1
-)
-
-echo Building EventsLogger...
-dotnet build "%EVENTS%"
-if errorlevel 1 (
-    echo EventsLogger build failed
-    pause
-    exit /b 1
-)
-
-:docker
-echo Recreating Redis...
-docker rm -f pa3-redis >nul 2>&1
-docker run -d --name pa3-redis -p 6379:6379 redis:7-alpine >nul
-if errorlevel 1 (
-    echo Failed to start Redis
-    pause
-    exit /b 1
-)
-
-echo Recreating RabbitMQ...
-docker rm -f pa3-rabbitmq >nul 2>&1
-docker run -d --name pa3-rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-management >nul
-if errorlevel 1 (
-    echo Failed to start RabbitMQ
-    pause
-    exit /b 1
-)
-
-echo Recreating nginx-lb...
-docker rm -f nginx-lb >nul 2>&1
-docker run -d --name nginx-lb -p 8080:8080 ^
-  -v "%CONF%:/etc/nginx/nginx.conf:ro" ^
-  -v "%LOGS%:/logs" ^
-  nginx:alpine >nul
-if errorlevel 1 (
-    echo Failed to start nginx-lb
-    pause
-    exit /b 1
-)
-
-echo Waiting for RabbitMQ...
-timeout /t 20 /nobreak >nul
-
-echo Creating runner files...
-
-> "%RUNNERDIR%\valuator-5001.cmd" (
-    echo @echo off
-    echo title Valuator-5001
-    echo cd /d "%VALUATOR_DIR%"
-    echo dotnet run --no-build --urls http://0.0.0.0:5001
-)
-
-> "%RUNNERDIR%\valuator-5002.cmd" (
-    echo @echo off
-    echo title Valuator-5002
-    echo cd /d "%VALUATOR_DIR%"
-    echo dotnet run --no-build --urls http://0.0.0.0:5002
-)
-
-> "%RUNNERDIR%\rank-1.cmd" (
-    echo @echo off
-    echo title RankCalculator-1
-    echo cd /d "%RANK_DIR%"
-    echo dotnet run --no-build
-)
-
-> "%RUNNERDIR%\rank-2.cmd" (
-    echo @echo off
-    echo title RankCalculator-2
-    echo cd /d "%RANK_DIR%"
-    echo dotnet run --no-build
-)
-
-> "%RUNNERDIR%\events-logger-1.cmd" (
-    echo @echo off
-    echo title EventsLogger-1
-    echo cd /d "%EVENTS_DIR%"
-    echo dotnet run --no-build
-)
-
-> "%RUNNERDIR%\events-logger-2.cmd" (
-    echo @echo off
-    echo title EventsLogger-2
-    echo cd /d "%EVENTS_DIR%"
-    echo dotnet run --no-build
-)
-
+echo.
 echo Starting Valuator-5001...
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\valuator-5001.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
-> "%PIDDIR%\valuator-5001.pid" echo %PID%
+start "Valuator-5001" cmd /k "cd /d ""%VALUATOR_DIR%"" && dotnet run --no-build --urls http://0.0.0.0:5001"
 
 echo Starting Valuator-5002...
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\valuator-5002.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
-> "%PIDDIR%\valuator-5002.pid" echo %PID%
+start "Valuator-5002" cmd /k "cd /d ""%VALUATOR_DIR%"" && dotnet run --no-build --urls http://0.0.0.0:5002"
 
 echo Starting RankCalculator-1...
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\rank-1.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
-> "%PIDDIR%\rank-1.pid" echo %PID%
+start "RankCalculator-1" cmd /k "cd /d ""%RANK_DIR%"" && dotnet run --no-build"
 
 echo Starting RankCalculator-2...
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\rank-2.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
-> "%PIDDIR%\rank-2.pid" echo %PID%
+start "RankCalculator-2" cmd /k "cd /d ""%RANK_DIR%"" && dotnet run --no-build"
 
 echo Starting EventsLogger-1...
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\events-logger-1.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
-> "%PIDDIR%\events-logger-1.pid" echo %PID%
+start "EventsLogger-1" cmd /k "cd /d ""%EVENTS_DIR%"" && dotnet run --no-build"
 
 echo Starting EventsLogger-2...
-for /f %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process cmd.exe -ArgumentList '/k', '""%RUNNERDIR%\events-logger-2.cmd""' -PassThru; $p.Id"') do set "PID=%%P"
-> "%PIDDIR%\events-logger-2.pid" echo %PID%
+start "EventsLogger-2" cmd /k "cd /d ""%EVENTS_DIR%"" && dotnet run --no-build"
 
 echo.
 echo Done.
-echo Open: http://localhost:8080
+echo.
+echo Site:
+echo http://localhost:8080
+echo.
+echo Register:
+echo http://localhost:8080/Register
+echo.
+echo Login:
+echo http://localhost:8080/Login
+echo.
+echo RabbitMQ UI:
+echo http://localhost:15672
+echo login: %RABBITMQ_USER%
+echo password: %RABBITMQ_PASSWORD%
+echo.
 pause
 exit /b 0
