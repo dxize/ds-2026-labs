@@ -1,8 +1,21 @@
 
+.vs/
+
 bin/
 obj/
 
-.vscode/
-.idea/
+/.vscode/
+/.idea/
+nginx/logs/*.log
+
 
 *.DotSettings.user
+
+.vs/
+**/bin/
+**/obj/
+nginx/logs/*.log
+
+
+scripts/.pids/
+scripts/.runners/
