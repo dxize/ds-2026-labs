@@ -1,9 +1,10 @@
+namespace Valuator.Pages;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using StackExchange.Redis;
 using Valuator.Infrastructure;
+using RedisShardRouter;
 
-namespace Valuator.Pages;
 
 public class IndexModel : PageModel
 {

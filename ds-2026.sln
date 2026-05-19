@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RankCalculator", "RankCalcu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventsLogger", "EventsLogger\EventsLogger.csproj", "{59E19D2B-3128-463D-9532-8ADD170D192B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RedisShardRouter", "RedisShardRouter\RedisShardRouter.csproj", "{329C1105-5109-470D-AEA0-3A4DA5D96DFA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{59E19D2B-3128-463D-9532-8ADD170D192B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{59E19D2B-3128-463D-9532-8ADD170D192B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{59E19D2B-3128-463D-9532-8ADD170D192B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{329C1105-5109-470D-AEA0-3A4DA5D96DFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{329C1105-5109-470D-AEA0-3A4DA5D96DFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{329C1105-5109-470D-AEA0-3A4DA5D96DFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{329C1105-5109-470D-AEA0-3A4DA5D96DFA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

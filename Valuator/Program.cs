@@ -1,6 +1,8 @@
-using Valuator.Infrastructure;
 
 namespace Valuator;
+
+using Valuator.Infrastructure;
+using RedisShardRouter;
 
 public class Program
 {

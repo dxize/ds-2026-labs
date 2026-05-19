@@ -1,6 +1,7 @@
-﻿using StackExchange.Redis;
+﻿using Microsoft.Extensions.Configuration;
+using StackExchange.Redis;
 
-namespace Valuator.Infrastructure;
+namespace RedisShardRouter;
 
 public sealed class RedisShardRouter : IDisposable
 {
